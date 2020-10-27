@@ -169,6 +169,10 @@ language: java
 jdk:
   - openjdk11
 
+cache:
+  directories:
+    - $HOME/.m2
+
 services:
   - docker
 
