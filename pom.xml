@@ -12,10 +12,10 @@
 	<artifactId>spring-boot-buildpack</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
 	<name>spring-boot-buildpack</name>
-	<description>Example project showing how to use Buildpacks.io together with Spring Boot & it's layered jar feature</description>
+	<description>Example project showing how to use Buildpacks.io together with Spring Boot and it's layered jar feature</description>
 
 	<properties>
-		<java.version>15</java.version>
+		<java.version>11</java.version>
 	</properties>
 
 	<dependencies>
