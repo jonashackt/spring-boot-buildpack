@@ -167,8 +167,6 @@ Simply add a [.travis.yml](.travis.yml) with
 language: java
 
 jdk:
-  - openjdk8
-  - openjdk9
   - openjdk11
 
 services:
