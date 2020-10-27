@@ -8,6 +8,7 @@
 
 Example project showing how to use Buildpacks.io together with Spring Boot &amp; it's layered jar feature
 
+[![asciicast](https://asciinema.org/a/368329.svg)](https://asciinema.org/a/368329)
 
 I was really inspired to get to know the concept of buildpacks after attending this year's Spring One 2020 - and especially the talk by https://twitter.com/nebhale : https://www.youtube.com/watch?v=44n_MtsggnI
 
@@ -217,7 +218,9 @@ Directly use Paketo with the pack CLI
 pack build spring-boot-buildpack --path . --builder paketobuildpacks/builder:base
 ```
 
-This will do exactly the same build which was run via the Spring Boot Maven build-image plugin
+This will do exactly the same build which was run via the Spring Boot Maven build-image plugin behind the scenes (but maybe in more beautiful color):
+
+[![asciicast](https://asciinema.org/a/368331.svg)](https://asciinema.org/a/368331)
 
 Now simply use Docker to run the resulting image:
 

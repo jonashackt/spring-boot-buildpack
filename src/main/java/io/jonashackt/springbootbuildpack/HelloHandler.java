@@ -10,7 +10,7 @@ import reactor.core.publisher.Mono;
 @Component
 public class HelloHandler {
 
-    protected static String RESPONSE_TEXT= "Hello Reactive Buildpack Builders :)!";
+    protected static String RESPONSE_TEXT= "Hello Reactive Cloud Native Buildpack Builders :)!";
 
     public Mono<ServerResponse> hello(ServerRequest serverRequest) {
         return ServerResponse
