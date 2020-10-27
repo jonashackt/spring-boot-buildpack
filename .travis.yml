@@ -10,5 +10,26 @@ cache:
 services:
   - docker
 
-script: mvn clean spring-boot:build-image
+jobs:
+  include:
+    - script:
+        - mvn clean spring-boot:build-image
+
+      name: "Build Spring Boot app with build-image Maven plugin"
+
+    - script:
+        # Install pack CLI via homebrew (which also seems to be the way on Linux, if you don't want to mess with versions.
+        # See https://buildpacks.io/docs/tools/pack/#pack-cli)
+        - curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install.sh | bash
+        - brew install buildpacks/tap/pack
+
+        # Build app with pack CLI
+        - pack build spring-boot-buildpack --path . --builder paketobuildpacks/builder:base
+
+        # Push to Docker Hub also
+        - echo "$DOCKER_HUB_TOKEN" | docker login -u "$DOCKER_HUB_USERNAME" --password-stdin
+        - docker tag spring-boot-buildpack jonashackt/spring-boot-buildpack:latest
+        - docker push jonashackt/spring-boot-buildpack:latest
+
+      name: "Build Spring Boot app with Paketo pack CLI"
 

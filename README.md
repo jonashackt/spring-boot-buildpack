@@ -4,9 +4,12 @@
 [![License](http://img.shields.io/:license-mit-blue.svg)](https://github.com/jonashackt/spring-boot-buildpack/blob/master/LICENSE)
 [![renovateenabled](https://img.shields.io/badge/renovate-enabled-yellow)](https://renovatebot.com)
 [![versionspringboot](https://img.shields.io/badge/dynamic/xml?color=brightgreen&url=https://raw.githubusercontent.com/jonashackt/spring-boot-buildpack/main/pom.xml&query=%2F%2A%5Blocal-name%28%29%3D%27project%27%5D%2F%2A%5Blocal-name%28%29%3D%27parent%27%5D%2F%2A%5Blocal-name%28%29%3D%27version%27%5D&label=springboot)](https://github.com/spring-projects/spring-boot)
+[![Pushed to Docker Hub](https://img.shields.io/badge/docker_hub-released-blue.svg?logo=docker)](https://hub.docker.com/r/jonashackt/spring-boot-buildpack)
 
 Example project showing how to use Buildpacks.io together with Spring Boot &amp; it's layered jar feature
 
+
+I was really inspired to get to know the concept of buildpacks after attending this year's Spring One 2020 - and especially the talk by https://twitter.com/nebhale : https://www.youtube.com/watch?v=44n_MtsggnI
 
 ### Buildpacks?
 
@@ -15,20 +18,14 @@ Example project showing how to use Buildpacks.io together with Spring Boot &amp;
 > Buildpacks were first conceived by Heroku in 2011. Since then, they have been adopted by Cloud Foundry (Pivotal) and other PaaS such as Google App Engine, Gitlab, Knative, Deis, Dokku, and Drie.
 
 
-### Cloud Native Buildpacks
+### Cloud Native Buildpacks & Paketo
 
 * today: CNCF Sandbox project 
 
 > Specification for turning applications into Docker images: [buildpacks.io](https://buildpacks.io/)
 
-* Startup Time reduction because no fat jar
-* Build packs integrated in Spring Boot from 2.3 on.
-
-
-### Paketo Buildpacks?
-
-* implementation for major languages (Java, Go, .Net, node.js, Ruby, PHP...)
-* [paketo.io](https://paketo.io/)
+Paketo.io is an implementation for major languages (Java, Go, .Net, node.js, Ruby, PHP...)
+--> [paketo.io](https://paketo.io/)
 
 
 ### Maven/Gradle Plugin to use Paketo Buildpacks
@@ -159,6 +156,13 @@ $ mvn spring-boot:build-image
 [INFO] ------------------------------------------------------------------------
 ``` 
 
+Now simply run your Dockerized app via
+
+```
+docker run -p 8080:8080 docker.io/library/spring-boot-buildpack
+```
+
+
 ### Doing a Buildpack build on Travis
 
 Simply add a [.travis.yml](.travis.yml) with
@@ -180,9 +184,53 @@ script: mvn clean spring-boot:build-image
 ```
 
 
+### Paketo pack CLI
+
+Use Paketo without the Maven/Gradle build plugin directly through the CLI.
+
+You need to [install pack CLI](https://buildpacks.io/docs/tools/pack/#pack-cli) first. On a Mac simply use brew:
+
+```
+brew install buildpacks/tap/pack
+```
+
+Choose one Paketo builder then
+
+```
+$ pack suggest-builders
+
+Suggested builders:
+	Google:                gcr.io/buildpacks/builder:v1      Ubuntu 18 base image with buildpacks for .NET, Go, Java, Node.js, and Python
+	Heroku:                heroku/buildpacks:18              heroku-18 base image with buildpacks for Ruby, Java, Node.js, Python, Golang, & PHP
+	Paketo Buildpacks:     paketobuildpacks/builder:base     Ubuntu bionic base image with buildpacks for Java, NodeJS and Golang
+	Paketo Buildpacks:     paketobuildpacks/builder:full     Ubuntu bionic base image with buildpacks for Java, .NET, NodeJS, Golang, PHP, HTTPD and NGINX
+	Paketo Buildpacks:     paketobuildpacks/builder:tiny     Tiny base image (bionic build image, distroless run image) with buildpacks for Golang
+
+Tip: Learn more about a specific builder with:
+	pack inspect-builder <builder-image>
+```
+
+
+Directly use Paketo with the pack CLI
+
+```
+pack build spring-boot-buildpack --path . --builder paketobuildpacks/builder:base
+```
+
+This will do exactly the same build which was run via the Spring Boot Maven build-image plugin
+
+Now simply use Docker to run the resulting image:
+
+```
+docker run -p 8080:8080 spring-boot-buildpack
+```
+
+and access your app on http://localhost:8080/hello
+
 
 
 ### Links
 
+Spring One 2020 talk by https://twitter.com/nebhale : https://www.youtube.com/watch?v=44n_MtsggnI
 https://spring.io/blog/2020/08/14/creating-efficient-docker-images-with-spring-boot-2-3
 https://www.baeldung.com/spring-boot-docker-images
