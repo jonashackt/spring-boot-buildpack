@@ -157,10 +157,101 @@ $ mvn spring-boot:build-image
 [INFO] ------------------------------------------------------------------------
 ``` 
 
+As you can see in the first phases `DETECTING` and `ANALYZING`, the build process analyses the given application and identifies multiple build packs that are needed to successfully package the application into a Docker image:
+
+```
+[INFO]     [creator]     ===> ANALYZING
+[INFO]     [creator]     Restoring metadata for "paketo-buildpacks/bellsoft-liberica:jre" from app image
+[INFO]     [creator]     Restoring metadata for "paketo-buildpacks/bellsoft-liberica:jvmkill" from app image
+[INFO]     [creator]     Restoring metadata for "paketo-buildpacks/bellsoft-liberica:helper" from app image
+[INFO]     [creator]     Restoring metadata for "paketo-buildpacks/bellsoft-liberica:java-security-properties" from app image
+[INFO]     [creator]     Restoring metadata for "paketo-buildpacks/executable-jar:class-path" from app image
+[INFO]     [creator]     Restoring metadata for "paketo-buildpacks/spring-boot:spring-cloud-bindings" from app image
+[INFO]     [creator]     Restoring metadata for "paketo-buildpacks/spring-boot:web-application-type" from app image
+[INFO]     [creator]     Restoring metadata for "paketo-buildpacks/spring-boot:helper" from app image
+```
+
+For example there's `paketo-buildpacks/bellsoft-liberica:jre` to bring in a JRE, since we have a Java app here. And there's also `paketo-buildpacks/executable-jar` since the resulting application is an executable jar.
+
+Also there are a few `paketo-buildpacks/spring-boot-x` build packs because we have a Spring Boot application.
+ 
+
 Now simply run your Dockerized app via
 
 ```
-docker run -p 8080:8080 docker.io/library/spring-boot-buildpack
+docker run -p 8080:8080 spring-boot-buildpack
+```
+
+If we use the great Container introspection tool [dive](https://github.com/wagoodman/dive) to gain an insight of the build Docker image, we a whole lot of image layers containing all the different paketo layers:
+
+![dive-container-layers-without-layered-jars-feature](screenshots/dive-container-layers-without-layered-jars-feature.png)
+
+
+### Layered jars
+
+From Spring Boot 2.3 on there's also [a build in feature called layered jars](https://spring.io/blog/2020/08/14/creating-efficient-docker-images-with-spring-boot-2-3).
+
+Before looking into the layered jars featuer, we should bring a standard Spring Boot jar layout to our minds. Simply unzip `spring-boot-buildpack-0.0.1-SNAPSHOT.jar` to see what's inside:
+
+![jar-layout](screenshots/jar-layout.png)
+
+You can see `BOOT-INF`, `META-INF` and `org` directories - where `BOOT-INF/classes` contains our application classes and `BOOT-INF/lib` inherits all application dependencies. The directory `org/springframework/boot/loader` contains all Spring Boot magic classes that are needed to create the executable Boot app. So nothing new here for the moment.
+
+While using Spring Boot 2.3.x we need activate this feature with simply configuring our `spring-boot-maven-plugin`:
+
+```
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>org.springframework.boot</groupId>
+				<artifactId>spring-boot-maven-plugin</artifactId>
+				<configuration>
+					<layers>
+						<enabled>true</enabled>
+					</layers>
+				</configuration>
+			</plugin>
+		</plugins>
+	</build>
+```
+
+From Spring Boot 2.4.x Milestones (and GA) on, you don't even need to configure it since the default behavior then.
+
+After another a fresh build our `BOOT-INF` directory contains a new `layers.idx` file:
+
+```
+- "dependencies":
+  - "BOOT-INF/lib/"
+- "spring-boot-loader":
+  - "org/"
+- "snapshot-dependencies":
+- "application":
+  - "BOOT-INF/classes/"
+  - "BOOT-INF/classpath.idx"
+  - "BOOT-INF/layers.idx"
+  - "META-INF/"
+```
+
+As you can see the main thing about this is to assign our directories to layers and implement an order for them! Our dependencies define the first layer since they are likely to not change that often.
+
+The second layer inherits all Spring Boot loader classes and also should change all too much. Our SNAPSHOT dependencies then make for a more variable part and create the 3rd layer.
+
+Finally our application's class files and so on are likely to change a lot! So they reside in the last layer.
+
+Now running our build pack powered Maven build again should show a new part `Creating slices from layers index` inside the `Paketo Spring Boot Buildpack` output:
+
+```
+$ mvn spring-boot:build-image
+...
+[INFO]     [creator]     Paketo Spring Boot Buildpack 3.2.1
+[INFO]     [creator]       https://github.com/paketo-buildpacks/spring-boot
+[INFO]     [creator]       Creating slices from layers index
+[INFO]     [creator]         dependencies
+[INFO]     [creator]         spring-boot-loader
+[INFO]     [creator]         snapshot-dependencies
+[INFO]     [creator]         application
+[INFO]     [creator]       Launch Helper: Reusing cached layer
+...
 ```
 
 
