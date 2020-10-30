@@ -190,17 +190,73 @@ Using dive we see a whole lot of Docker image layers containing all the differen
 
 ![dive-container-layers-without-layered-jars-feature](screenshots/dive-container-layers-without-layered-jars-feature.png)
 
-If you want to have dive always start with the default to collapse directories & hide file attributes for an easier overview whats going on inside the layers, you can have a look at
+If you want to have dive always start with the default to hide file attributes & unmodified files of each layer for an easier overview whats going on inside the layers, you can have a look at
 https://github.com/wagoodman/dive#ui-configuration or simply create a `.dive.yaml` inside your home directory. Here's my `.dive.yaml` for convenience:
 
 ```yaml
-filetree:
-  # The default directory-collapse state
-  collapse-dir: true
+diff:
+  # You can change the default files shown in the filetree (right pane). All diff types are shown by default.
+  hide:
+    - unmodified
 
+filetree:
   # Show the file attributes next to the filetree
   show-attributes: false
 ```
+
+Btw. it's also the dive configuration https://twitter.com/nebhale uses in his SpringOne 2020 talk - and it took me a while to get that one right :) 
+
+
+
+### Paketo pack CLI
+
+Use Paketo without the Maven/Gradle build plugin directly through the CLI.
+
+You need to [install pack CLI](https://buildpacks.io/docs/tools/pack/#pack-cli) first. On a Mac simply use brew:
+
+```
+brew install buildpacks/tap/pack
+```
+
+Choose one Paketo builder then
+
+```
+$ pack suggest-builders
+
+Suggested builders:
+	Google:                gcr.io/buildpacks/builder:v1      Ubuntu 18 base image with buildpacks for .NET, Go, Java, Node.js, and Python
+	Heroku:                heroku/buildpacks:18              heroku-18 base image with buildpacks for Ruby, Java, Node.js, Python, Golang, & PHP
+	Paketo Buildpacks:     paketobuildpacks/builder:base     Ubuntu bionic base image with buildpacks for Java, NodeJS and Golang
+	Paketo Buildpacks:     paketobuildpacks/builder:full     Ubuntu bionic base image with buildpacks for Java, .NET, NodeJS, Golang, PHP, HTTPD and NGINX
+	Paketo Buildpacks:     paketobuildpacks/builder:tiny     Tiny base image (bionic build image, distroless run image) with buildpacks for Golang
+
+Tip: Learn more about a specific builder with:
+	pack inspect-builder <builder-image>
+```
+
+
+Directly use Paketo with the pack CLI
+
+```
+pack build spring-boot-buildpack --path . --builder paketobuildpacks/builder:base
+```
+
+This will do exactly the same build which was run via the Spring Boot Maven build-image plugin behind the scenes (but maybe in more beautiful color):
+
+[![asciicast](https://asciinema.org/a/368331.svg)](https://asciinema.org/a/368331)
+
+Now simply use Docker to run the resulting image:
+
+```
+docker run -p 8080:8080 spring-boot-buildpack
+```
+
+and access your app on http://localhost:8080/hello
+
+
+
+
+
 
 ### Layered jars
 
@@ -212,7 +268,7 @@ Before looking into the layered jars featuer, we should bring a standard Spring 
 
 You can see `BOOT-INF`, `META-INF` and `org` directories - where `BOOT-INF/classes` contains our application classes and `BOOT-INF/lib` inherits all application dependencies. The directory `org/springframework/boot/loader` contains all Spring Boot magic classes that are needed to create the executable Boot app. So nothing new here for the moment.
 
-While using Spring Boot 2.3.x we need activate this feature with simply configuring our `spring-boot-maven-plugin`:
+[While using Spring Boot 2.3.x we need activate this feature](https://docs.spring.io/spring-boot/docs/2.3.1.RELEASE/maven-plugin/reference/html/#repackage-layers) with simply configuring our `spring-boot-maven-plugin`:
 
 ```
 	<build>
@@ -230,7 +286,12 @@ While using Spring Boot 2.3.x we need activate this feature with simply configur
 	</build>
 ```
 
-From Spring Boot 2.4.x Milestones (and GA) on, you don't even need to configure it since the default behavior then. Now run a fresh 
+[From Spring Boot 2.4.x Milestones (and GA) on, you don't even need to configure it since the default behavior then](https://docs.spring.io/spring-boot/docs/current-SNAPSHOT/maven-plugin/reference/html/#repackage-layers):
+
+> The repackaged jar includes the layers.idx file by default.
+
+
+Now run a fresh 
 
 ```
 mvn clean package
@@ -368,51 +429,6 @@ script: mvn clean spring-boot:build-image
 ```
 
 
-### Paketo pack CLI
-
-Use Paketo without the Maven/Gradle build plugin directly through the CLI.
-
-You need to [install pack CLI](https://buildpacks.io/docs/tools/pack/#pack-cli) first. On a Mac simply use brew:
-
-```
-brew install buildpacks/tap/pack
-```
-
-Choose one Paketo builder then
-
-```
-$ pack suggest-builders
-
-Suggested builders:
-	Google:                gcr.io/buildpacks/builder:v1      Ubuntu 18 base image with buildpacks for .NET, Go, Java, Node.js, and Python
-	Heroku:                heroku/buildpacks:18              heroku-18 base image with buildpacks for Ruby, Java, Node.js, Python, Golang, & PHP
-	Paketo Buildpacks:     paketobuildpacks/builder:base     Ubuntu bionic base image with buildpacks for Java, NodeJS and Golang
-	Paketo Buildpacks:     paketobuildpacks/builder:full     Ubuntu bionic base image with buildpacks for Java, .NET, NodeJS, Golang, PHP, HTTPD and NGINX
-	Paketo Buildpacks:     paketobuildpacks/builder:tiny     Tiny base image (bionic build image, distroless run image) with buildpacks for Golang
-
-Tip: Learn more about a specific builder with:
-	pack inspect-builder <builder-image>
-```
-
-
-Directly use Paketo with the pack CLI
-
-```
-pack build spring-boot-buildpack --path . --builder paketobuildpacks/builder:base
-```
-
-This will do exactly the same build which was run via the Spring Boot Maven build-image plugin behind the scenes (but maybe in more beautiful color):
-
-[![asciicast](https://asciinema.org/a/368331.svg)](https://asciinema.org/a/368331)
-
-Now simply use Docker to run the resulting image:
-
-```
-docker run -p 8080:8080 spring-boot-buildpack
-```
-
-and access your app on http://localhost:8080/hello
-
 
 
 ### Links
@@ -423,4 +439,8 @@ https://spring.io/blog/2020/01/27/creating-docker-images-with-spring-boot-2-3-0-
 
 https://spring.io/blog/2020/08/14/creating-efficient-docker-images-with-spring-boot-2-3
 
+https://docs.spring.io/spring-boot/docs/2.3.0.RELEASE/maven-plugin/reference/html/#repackage-layers
+
 https://www.baeldung.com/spring-boot-docker-images
+
+https://github.com/paketo-buildpacks/spring-boot
