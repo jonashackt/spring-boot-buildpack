@@ -182,10 +182,25 @@ Now simply run your Dockerized app via
 docker run -p 8080:8080 spring-boot-buildpack
 ```
 
-If we use the great Container introspection tool [dive](https://github.com/wagoodman/dive) to gain an insight of the build Docker image, we a whole lot of image layers containing all the different paketo layers:
+Let's use the great Container introspection tool [dive](https://github.com/wagoodman/dive) to gain an insight of the build Docker image
+
+Install it with `brew install dive` on a Mac (or see https://github.com/wagoodman/dive#installation)
+ 
+Using dive we see a whole lot of Docker image layers containing all the different paketo layers:
 
 ![dive-container-layers-without-layered-jars-feature](screenshots/dive-container-layers-without-layered-jars-feature.png)
 
+If you want to have dive always start with the default to collapse directories & hide file attributes for an easier overview whats going on inside the layers, you can have a look at
+https://github.com/wagoodman/dive#ui-configuration or simply create a `.dive.yaml` inside your home directory. Here's my `.dive.yaml` for convenience:
+
+```yaml
+filetree:
+  # The default directory-collapse state
+  collapse-dir: true
+
+  # Show the file attributes next to the filetree
+  show-attributes: false
+```
 
 ### Layered jars
 
@@ -215,9 +230,13 @@ While using Spring Boot 2.3.x we need activate this feature with simply configur
 	</build>
 ```
 
-From Spring Boot 2.4.x Milestones (and GA) on, you don't even need to configure it since the default behavior then.
+From Spring Boot 2.4.x Milestones (and GA) on, you don't even need to configure it since the default behavior then. Now run a fresh 
 
-After another a fresh build our `BOOT-INF` directory contains a new `layers.idx` file:
+```
+mvn clean package
+```
+
+Now our jar file's `BOOT-INF` directory contains a new `layers.idx` file:
 
 ```
 - "dependencies":
@@ -237,6 +256,79 @@ As you can see the main thing about this is to assign our directories to layers 
 The second layer inherits all Spring Boot loader classes and also should change all too much. Our SNAPSHOT dependencies then make for a more variable part and create the 3rd layer.
 
 Finally our application's class files and so on are likely to change a lot! So they reside in the last layer.
+
+In order to view the layers, there's a new command line option (or system property) `-Djarmode=layertools` for us. Simply `cd` into the `target` directory and run:
+
+```
+$ java -Djarmode=layertools -jar spring-boot-buildpack-0.0.1-SNAPSHOT.jar list
+
+dependencies
+spring-boot-loader
+snapshot-dependencies
+application
+```
+
+To extract each layer, we can also use the command line option with the `extract` option:
+
+```
+$ java -Djarmode=layertools -jar spring-boot-buildpack-0.0.1-SNAPSHOT.jar extract
+```
+
+Now inside the `target` directory you should find 4 more folders, which represent the separate layers:
+
+![extracted-jar-layers](screenshots/extracted-jar-layers.png)
+
+All those directories could be used to create a separate layer inside a Docker image e.g. by using the `COPY` command. Phil Webb [outlined this in his spring.io post](https://spring.io/blog/2020/01/27/creating-docker-images-with-spring-boot-2-3-0-m1) already, where he crafts a `Dockerfile` that runs the `java -Djarmode=layertools -jar` command in the first build container and then uses the extracted directories to create seperate Docker layers from them: 
+
+```dockerfile
+FROM adoptopenjdk:11-jre-hotspot as builder
+WORKDIR application
+ARG JAR_FILE=target/*.jar
+COPY ${JAR_FILE} application.jar
+RUN java -Djarmode=layertools -jar application.jar extract
+
+FROM adoptopenjdk:11-jre-hotspot
+WORKDIR application
+COPY --from=builder application/dependencies/ ./
+COPY --from=builder application/spring-boot-loader/ ./
+COPY --from=builder application/snapshot-dependencies/ ./
+COPY --from=builder application/application/ ./
+ENTRYPOINT ["java", "org.springframework.boot.loader.JarLauncher"]
+```
+
+You can run the Docker build if you want using the [DockerfileThatsNotNeededUsingBuildpacks](DockerfileThatsNotNeededUsingBuildpacks) via:
+
+```
+docker build . --tag spring-boot-layered --file DockerfileThatsNotNeededUsingBuildpack
+```
+
+And inside the output you'll see the separate layers beeing created:
+
+```
+...
+Step 8/12 : COPY --from=builder application/dependencies/ ./
+ ---> 88bb8adaaca6
+Step 9/12 : COPY --from=builder application/spring-boot-loader/ ./
+ ---> 3922891db128
+Step 10/12 : COPY --from=builder application/snapshot-dependencies/ ./
+ ---> f139bcf5babb
+Step 11/12 : COPY --from=builder application/application/ ./
+ ---> 5d02393d4fe2
+...
+```
+
+We can even further examine the created Docker image with `dive`:
+
+```
+dive spring-boot-layered
+```
+
+It was really cool for me to see that one in action!
+
+![dive-docker-image-with-layeres](screenshots/dive-docker-image-with-layeres.png)
+
+
+### Buildpacks with layered jars
 
 Now running our build pack powered Maven build again should show a new part `Creating slices from layers index` inside the `Paketo Spring Boot Buildpack` output:
 
@@ -326,5 +418,9 @@ and access your app on http://localhost:8080/hello
 ### Links
 
 Spring One 2020 talk by https://twitter.com/nebhale : https://www.youtube.com/watch?v=44n_MtsggnI
+
+https://spring.io/blog/2020/01/27/creating-docker-images-with-spring-boot-2-3-0-m1
+
 https://spring.io/blog/2020/08/14/creating-efficient-docker-images-with-spring-boot-2-3
+
 https://www.baeldung.com/spring-boot-docker-images
