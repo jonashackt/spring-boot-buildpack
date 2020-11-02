@@ -407,6 +407,10 @@ $ mvn spring-boot:build-image
 ...
 ```
 
+Oh, I found a bug https://github.com/paketo-buildpacks/spring-boot/issues/1 , which comes from a change in the buildpacks/lifecycle umbrella project: https://github.com/buildpacks/lifecycle/issues/455
+
+Until this get's fixed, I can't really complete the work here - since layered jars don't fully work with Buildpacks right now.
+
 
 ### Doing a Buildpack build on Travis
 
