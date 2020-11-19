@@ -254,8 +254,25 @@ docker run -p 8080:8080 spring-boot-buildpack
 and access your app on http://localhost:8080/hello
 
 
+##### Why are the Spring Boot & Paketo images 40 years old?
 
+As you may noticed the resulting images have a really old timestamp:
 
+```shell script
+gcr.io/paketo-buildpacks/builder          base-platform-api-0.3   914aba170326        40 years ago        654MB
+paketobuildpacks/builder                  <none>                  914aba170326        40 years ago        654MB
+spring-boot-buildpack-gcr-builder         latest                  6c7a74899b13        40 years ago        462MB
+pack.local/builder/axczkudrjk             latest                  69aeed7ad644        40 years ago        654MB
+spring-boot-buildpack                     latest                  b529a37599a6        40 years ago        259MB
+jonashackt/spring-boot-buildpack          latest                  a9ccbb57fffd        40 years ago        259MB
+paketobuildpacks/builder                  base                    1435430a71b7        40 years ago        558MB
+```
+
+Why is that? Because of providing reproducible builds (see this https://reproducible-builds.org/ for more info).
+
+There's great post about the why available here: https://medium.com/buildpacks/time-travel-with-pack-e0efd8bf05db (Thanks coldfinger [to clarify this one on stackoverflow](https://stackoverflow.com/a/62866908/4964553)!)
+
+Long story short: Without the fixed timestamp the hashes of the Docker images would differ every time you would issue a build (although maybe only seconds) - and then it wouldn't be clear, if anything changed.
 
 
 ### Layered jars
