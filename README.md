@@ -12,14 +12,30 @@ Example project showing how to use Buildpacks.io together with Spring Boot &amp;
 
 I was really inspired to get to know the concept of buildpacks after attending this year's Spring One 2020 - and especially the talk by https://twitter.com/nebhale : https://www.youtube.com/watch?v=44n_MtsggnI
 
-### Buildpacks?
+## Table of Contents 
+
+* [Spring Boot & Cloud Native Build Packs?](#spring-boot--cloud-native-build-packs)
+* [Step by step...](#step-by-step)
+* ["dive" into the Containers](#dive-into-the-containers)
+* [Paketo pack CLI](#paketo-pack-cli)
+  * [Why are the Spring Boot & Paketo images 40 years old?](#why-are-the-spring-boot--paketo-images-40-years-old)
+* [Layered jars](#layered-jars)
+* [Using Layered jars inside Dockerfiles](#using-layered-jars-inside-dockerfiles)
+* [Buildpacks with layered jars](#buildpacks-with-layered-jars)
+* [Doing a Buildpack build on TravisCI](#doing-a-buildpack-build-on-travisci)
+
+
+
+### Spring Boot & Cloud Native Build Packs?
+
+__Buildpacks?__
 
 * Heroku invented (2011)
 
 > Buildpacks were first conceived by Heroku in 2011. Since then, they have been adopted by Cloud Foundry (Pivotal) and other PaaS such as Google App Engine, Gitlab, Knative, Deis, Dokku, and Drie.
 
 
-### Cloud Native Buildpacks & Paketo
+__Cloud Native Buildpacks & Paketo__
 
 * today: CNCF Sandbox project 
 
@@ -29,7 +45,7 @@ Paketo.io is an implementation for major languages (Java, Go, .Net, node.js, Rub
 --> [paketo.io](https://paketo.io/)
 
 
-### Maven/Gradle Plugin to use Paketo Buildpacks
+__Maven/Gradle Plugin to use Paketo Buildpacks__
 
 The build-image plugin takes care of doing the Paketo build. From Spring Boot 2.3.x on simply run it with:
 
@@ -182,6 +198,9 @@ Now simply run your Dockerized app via
 docker run -p 8080:8080 spring-boot-buildpack
 ```
 
+
+### "dive" into the Containers
+
 Let's use the great Container introspection tool [dive](https://github.com/wagoodman/dive) to gain an insight of the build Docker image
 
 Install it with `brew install dive` on a Mac (or see https://github.com/wagoodman/dive#installation)
@@ -275,6 +294,7 @@ There's great post about the why available here: https://medium.com/buildpacks/t
 Long story short: Without the fixed timestamp the hashes of the Docker images would differ every time you would issue a build (although maybe only seconds) - and then it wouldn't be clear, if anything changed.
 
 
+
 ### Layered jars
 
 From Spring Boot 2.3 on there's also [a build in feature called layered jars](https://spring.io/blog/2020/08/14/creating-efficient-docker-images-with-spring-boot-2-3).
@@ -356,6 +376,9 @@ Now inside the `target` directory you should find 4 more folders, which represen
 
 ![extracted-jar-layers](screenshots/extracted-jar-layers.png)
 
+
+### Using Layered jars inside Dockerfiles
+
 All those directories could be used to create a separate layer inside a Docker image e.g. by using the `COPY` command. Phil Webb [outlined this in his spring.io post](https://spring.io/blog/2020/01/27/creating-docker-images-with-spring-boot-2-3-0-m1) already, where he crafts a `Dockerfile` that runs the `java -Djarmode=layertools -jar` command in the first build container and then uses the extracted directories to create seperate Docker layers from them: 
 
 ```dockerfile
@@ -424,14 +447,30 @@ $ mvn spring-boot:build-image
 ...
 ```
 
-Oh, I found a bug https://github.com/paketo-buildpacks/spring-boot/issues/1 , which comes from a change in the buildpacks/lifecycle umbrella project: https://github.com/buildpacks/lifecycle/issues/455
+> Oh, I found a bug https://github.com/paketo-buildpacks/spring-boot/issues/1 , which comes from a change in the buildpacks/lifecycle umbrella project: https://github.com/buildpacks/lifecycle/issues/455
 
-Until this get's fixed, I can't really complete the work here - since layered jars don't fully work with Buildpacks right now.
+Bug was fixed already :) So we could move on! After doing our build pack powered build, at the end of the log you should find the latest image id like `*** Images (4c26dc7b3fa3)`:
+
+```
+...
+*** Images (4c26dc7b3fa3):
+      spring-boot-buildpack
+Reusing cache layer 'paketo-buildpacks/bellsoft-liberica:jdk'
+Adding cache layer 'paketo-buildpacks/maven:application'
+Adding cache layer 'paketo-buildpacks/maven:cache'
+Reusing cache layer 'paketo-buildpacks/maven:maven'
+Successfully built image spring-boot-buildpack
+```
+
+Now let's dive into the build image and watch our for our layers inside it:
+
+![dive-container-layers-paketo-using-layered-jars-feature](screenshots/dive-container-layers-paketo-using-layered-jars-feature.png)
 
 
-### Doing a Buildpack build on Travis
 
-Simply add a [.travis.yml](.travis.yml) with
+### Doing a Buildpack build on TravisCI
+
+Let's have a look into this project's [.travis.yml](.travis.yml):
 
 ```yaml
 language: java
@@ -446,9 +485,31 @@ cache:
 services:
   - docker
 
-script: mvn clean spring-boot:build-image
+jobs:
+  include:
+    - script:
+        - mvn clean spring-boot:build-image
+
+      name: "Build Spring Boot app with build-image Maven plugin"
+
+    - script:
+        # Install pack CLI via homebrew. See https://buildpacks.io/docs/tools/pack/#pack-cli
+        - (curl -sSL "https://github.com/buildpacks/pack/releases/download/v0.14.2/pack-v0.14.2-linux.tgz" | sudo tar -C /usr/local/bin/ --no-same-owner -xzv pack)
+
+        # Build app with pack CLI
+        - pack build spring-boot-buildpack --path . --builder paketobuildpacks/builder:base
+
+        # Push to Docker Hub also
+        - echo "$DOCKER_HUB_TOKEN" | docker login -u "$DOCKER_HUB_USERNAME" --password-stdin
+        - docker tag spring-boot-buildpack jonashackt/spring-boot-buildpack:latest
+        - docker push jonashackt/spring-boot-buildpack:latest
+
+      name: "Build Spring Boot app with Paketo.io pack CLI"
 ```
 
+I wanted to have both possible build options covered - the first uses the Maven plugin with `mvn clean spring-boot:build-image`.
+
+The second installs `pack CLI` and build the application using it. Also the resulting image is pushed to DockerHub at https://hub.docker.com/r/jonashackt/spring-boot-buildpack
 
 
 
