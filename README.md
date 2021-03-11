@@ -1,6 +1,6 @@
 # spring-boot-buildpack
 
-[![Build Status](https://travis-ci.com/jonashackt/spring-boot-buildpack.svg?branch=main)](https://travis-ci.com/jonashackt/spring-boot-buildpack)
+[![Build Status](https://github.com/jonashackt/spring-boot-buildpack/workflows/build/badge.svg)](https://github.com/jonashackt/spring-boot-buildpack/actions)
 [![License](http://img.shields.io/:license-mit-blue.svg)](https://github.com/jonashackt/spring-boot-buildpack/blob/master/LICENSE)
 [![renovateenabled](https://img.shields.io/badge/renovate-enabled-yellow)](https://renovatebot.com)
 [![versionspringboot](https://img.shields.io/badge/dynamic/xml?color=brightgreen&url=https://raw.githubusercontent.com/jonashackt/spring-boot-buildpack/main/pom.xml&query=%2F%2A%5Blocal-name%28%29%3D%27project%27%5D%2F%2A%5Blocal-name%28%29%3D%27parent%27%5D%2F%2A%5Blocal-name%28%29%3D%27version%27%5D&label=springboot)](https://github.com/spring-projects/spring-boot)
@@ -34,16 +34,16 @@ __Buildpacks?__
 
 > Buildpacks were first conceived by Heroku in 2011. Since then, they have been adopted by Cloud Foundry (Pivotal) and other PaaS such as Google App Engine, Gitlab, Knative, Deis, Dokku, and Drie.
 
-
 __Cloud Native Buildpacks & Paketo__
 
-* today: CNCF Sandbox project 
+* today: [CNCF Incubation project](https://www.cncf.io/blog/2020/11/18/toc-approves-cloud-native-buildpacks-from-sandbox-to-incubation/) 
 
 > Specification for turning applications into Docker images: [buildpacks.io](https://buildpacks.io/)
 
 Paketo.io is an implementation for major languages (Java, Go, .Net, node.js, Ruby, PHP...)
 --> [paketo.io](https://paketo.io/)
 
+Similar to tools like: Jib https://github.com/GoogleContainerTools/jib, ko https://github.com/google/ko, Bazel (https://bazel.build/)
 
 __Maven/Gradle Plugin to use Paketo Buildpacks__
 
@@ -351,7 +351,7 @@ Now our jar file's `BOOT-INF` directory contains a new `layers.idx` file:
 
 As you can see the main thing about this is to assign our directories to layers and implement an order for them! Our dependencies define the first layer since they are likely to not change that often.
 
-The second layer inherits all Spring Boot loader classes and also should change all too much. Our SNAPSHOT dependencies then make for a more variable part and create the 3rd layer.
+The second layer inherits all Spring Boot loader classes and also shouldn't change all too much. Our SNAPSHOT dependencies then make for a more variable part and create the 3rd layer.
 
 Finally our application's class files and so on are likely to change a lot! So they reside in the last layer.
 
@@ -512,6 +512,14 @@ I wanted to have both possible build options covered - the first uses the Maven 
 The second installs `pack CLI` and build the application using it. Also the resulting image is pushed to DockerHub at https://hub.docker.com/r/jonashackt/spring-boot-buildpack
 
 
+### Building GraalVM Native Images from Spring Boot Apps using Buildpacks
+
+There's a new Maven goal in town to use Buildpacks to create Native Images (see https://github.com/jonashackt/spring-boot-graalvm)
+
+```shell script
+mvn springboot:native
+```
+
 
 ### Links
 
@@ -526,3 +534,57 @@ https://docs.spring.io/spring-boot/docs/2.3.0.RELEASE/maven-plugin/reference/htm
 https://www.baeldung.com/spring-boot-docker-images
 
 https://github.com/paketo-buildpacks/spring-boot
+
+PackCLI needs Docker container runtime locally, not `docker build`! Build is done by lifecycle, see https://github.com/buildpacks/pack/issues/564#issuecomment-610172880
+
+https://www.redhat.com/en/blog/why-red-hat-investing-cri-o-and-podman
+
+
+## Advanced Topics
+
+#### Passing Runtime Environment Variables JAVA_TOOL_OPTS
+
+https://stackoverflow.com/questions/64964709/how-to-pass-flags-to-java-process-in-docker-contatiner-built-by-cloud-native-bui/65142031#65142031
+
+
+#### Bindings
+
+Configure JDK uri of the bellsoft-liberica buildpack:
+
+https://stackoverflow.com/questions/65212231/cloud-native-buildpacks-paketo-with-java-spring-boot-how-to-configure-different
+
+Configure uri of spring-cloud-bindings jar:
+
+https://stackoverflow.com/questions/65118519/spring-boot-gradle-bootbuildimage-task-with-private-repo
+
+Bindings with spring-boot-maven-plugin
+
+https://stackoverflow.com/questions/65078636/how-to-configure-buildpack-bindings-with-the-spring-boot-maven-plugin/65195715#65195715
+
+
+#### Change 
+
+
+#### K8s
+
+Skaffold: https://skaffold.dev/docs/pipeline-stages/builders/buildpacks/
+
+https://stackoverflow.com/questions/64843991/how-do-i-use-spring-boot-maven-plugin-build-image-with-skaffold-and-dekorate
+
+
+#### Buildpacks with Spring Boot < 2.3
+
+https://stackoverflow.com/questions/64061096/using-cloud-native-buildpacks-with-spring-boot-2-3/65142343#65142343
+
+
+
+#### Azure
+
+https://docs.microsoft.com/en-us/azure/container-registry/container-registry-tasks-pack-build
+
+
+#### Google Cloud
+
+https://cloud.google.com/blog/products/containers-kubernetes/google-cloud-now-supports-buildpacks
+
+
