@@ -47,6 +47,13 @@
 <!--						<enabled>true</enabled>-->
 <!--					</layers>-->
 <!--				</configuration>-->
+				<configuration>
+					<image>
+						<env>
+							<BP_OCI_SOURCE>https://github.com/jonashackt/spring-boot-buildpack</BP_OCI_SOURCE>
+						</env>
+					</image>
+				</configuration>
 			</plugin>
 		</plugins>
 	</build>

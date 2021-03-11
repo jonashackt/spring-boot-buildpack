@@ -16,7 +16,7 @@ jobs:
 
       - name: Build with spring-boot-maven-plugin and publish to GitHub Container Registry
         run: |
-          echo 'Login to bc GitHub Container Registry'
+          echo 'Login to GitHub Container Registry'
           echo $CR_PAT | docker login ghcr.io -u jonashackt --password-stdin
 
           echo 'Build a container image from our Spring Boot app using Paketo.io / Cloud Native Build Packs'
@@ -36,10 +36,10 @@ jobs:
 
       - name: Build with Paketo CLI and publish to Docker Hub
         run: |
-          echo 'Login to bc DockerHub Container Registry'
+          echo 'Login to DockerHub Container Registry'
           echo $DOCKER_HUB_TOKEN | docker login -u jonashackt --password-stdin
 
-          echo 'Install pack CLI via homebrew. See https://buildpacks.io/docs/tools/pack/#pack-cli'
+          echo 'Install pack CLI via apt. See https://buildpacks.io/docs/tools/pack/#pack-cli'
           sudo add-apt-repository ppa:cncf-buildpacks/pack-cli
           sudo apt-get update
           sudo apt-get install pack-cli
