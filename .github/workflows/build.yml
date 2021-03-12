@@ -32,14 +32,6 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - name: Cache Docker layers
-        uses: actions/cache@v2
-        with:
-          path: /tmp/.buildx-cache
-          key: ${{ runner.os }}-buildx-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-buildx-
-
       - name: Login to DockerHub Container Registry
         run: echo $DOCKER_HUB_TOKEN | docker login -u jonashackt --password-stdin
         env:
