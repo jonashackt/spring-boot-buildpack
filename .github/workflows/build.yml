@@ -38,31 +38,38 @@ jobs:
       - name: Build a container image from our Spring Boot app using Paketo.io / Cloud Native Build Packs
         run: mvn spring-boot:build-image --batch-mode --no-transfer-progress
 
-      - name: Tag Paketo build image to have the right GitHub Container Registry coordinates
-        run:  docker tag spring-boot-buildpack:0.0.1-SNAPSHOT ghcr.io/jonashackt/spring-boot-buildpack:latest
-
-      - name: Push the image to GitHub Container Registry
-        run:  docker push ghcr.io/jonashackt/spring-boot-buildpack:latest
+      - name: Tag & publish to GitHub Container Registry
+        run: |
+          docker tag spring-boot-buildpack:0.0.1-SNAPSHOT ghcr.io/jonashackt/spring-boot-buildpack:latest
+          docker push ghcr.io/jonashackt/spring-boot-buildpack:latest
 
   build-with-paketo-push-2-dockerhub:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
 
-      - name: Build with Paketo CLI and publish to Docker Hub
-        run: |
-          echo 'Login to DockerHub Container Registry'
-          echo $DOCKER_HUB_TOKEN | docker login -u jonashackt --password-stdin
+      - name: Cache Docker layers
+        uses: actions/cache@v2
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-
 
-          echo 'Install pack CLI via apt. See https://buildpacks.io/docs/tools/pack/#pack-cli'
+      - name: Login to DockerHub Container Registry
+        run: echo $DOCKER_HUB_TOKEN | docker login -u jonashackt --password-stdin
+
+      - name: Install pack CLI via apt. See https://buildpacks.io/docs/tools/pack/#pack-cli
+        run: |
           sudo add-apt-repository ppa:cncf-buildpacks/pack-cli
           sudo apt-get update
           sudo apt-get install pack-cli
 
-          echo 'Build app with pack CLI'
-          pack build spring-boot-buildpack --path . --builder paketobuildpacks/builder:base
+      - name: Build app with pack CLI
+        run: pack build spring-boot-buildpack --path . --builder paketobuildpacks/builder:base
 
-          echo 'Push to Docker Hub'
+      - name: Tag & publish to Docker Hub
+        run: |
           docker tag spring-boot-buildpack jonashackt/spring-boot-buildpack:latest
           docker push jonashackt/spring-boot-buildpack:latest
         env:
