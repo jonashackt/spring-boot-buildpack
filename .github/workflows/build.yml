@@ -14,6 +14,11 @@ jobs:
         with:
           java-version: 15
 
+      - name: Show Docker info
+        run: |
+          docker info
+          sudo ls -la /var/lib/docker
+
       - name: Login to GitHub Container Registry
         run: echo $CR_PAT | docker login ghcr.io -u jonashackt --password-stdin
         env:
