@@ -3,7 +3,7 @@ name: build
 on: [push]
 
 jobs:
-  build-with-maven:
+  build-with-maven-push-2-ghcr:
     runs-on: ubuntu-latest
 
     steps:
@@ -14,41 +14,39 @@ jobs:
         with:
           java-version: 15
 
-      - name: Build with spring-boot-maven-plugin and publish to GitHub Container Registry
-        run: |
-          echo 'Login to GitHub Container Registry'
-          echo $CR_PAT | docker login ghcr.io -u jonashackt --password-stdin
-
-          echo 'Build a container image from our Spring Boot app using Paketo.io / Cloud Native Build Packs'
-          mvn spring-boot:build-image --batch-mode --no-transfer-progress
-
-          echo 'tag Paketo build image to have the right GitHub Container Registry coordinates'
-          docker tag spring-boot-buildpack:0.0.1-SNAPSHOT ghcr.io/jonashackt/spring-boot-buildpack:latest
-
-          docker push ghcr.io/jonashackt/spring-boot-buildpack:latest
+      - name: Login to GitHub Container Registry
+        run: echo $CR_PAT | docker login ghcr.io -u jonashackt --password-stdin
         env:
           CR_PAT: ${{ secrets.CR_PAT }}
 
-  build-with-paketo:
+      - name: Build a container image from our Spring Boot app using Paketo.io / Cloud Native Build Packs
+        run: mvn spring-boot:build-image --batch-mode --no-transfer-progress
+
+      - name: Tag & publish to GitHub Container Registry
+        run: |
+          docker tag spring-boot-buildpack:0.0.1-SNAPSHOT ghcr.io/jonashackt/spring-boot-buildpack:latest
+          docker push ghcr.io/jonashackt/spring-boot-buildpack:latest
+
+  build-with-paketo-push-2-dockerhub:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
 
-      - name: Build with Paketo CLI and publish to Docker Hub
-        run: |
-          echo 'Login to DockerHub Container Registry'
-          echo $DOCKER_HUB_TOKEN | docker login -u jonashackt --password-stdin
+      - name: Login to DockerHub Container Registry
+        run: echo $DOCKER_HUB_TOKEN | docker login -u jonashackt --password-stdin
+        env:
+          DOCKER_HUB_TOKEN: ${{ secrets.DOCKER_HUB_TOKEN }}
 
-          echo 'Install pack CLI via apt. See https://buildpacks.io/docs/tools/pack/#pack-cli'
+      - name: Install pack CLI via apt. See https://buildpacks.io/docs/tools/pack/#pack-cli
+        run: |
           sudo add-apt-repository ppa:cncf-buildpacks/pack-cli
           sudo apt-get update
           sudo apt-get install pack-cli
 
-          echo 'Build app with pack CLI'
-          pack build spring-boot-buildpack --path . --builder paketobuildpacks/builder:base
-
-          echo 'Push to Docker Hub'
-          docker tag spring-boot-buildpack jonashackt/spring-boot-buildpack:latest
-          docker push jonashackt/spring-boot-buildpack:latest
-        env:
-          DOCKER_HUB_TOKEN: ${{ secrets.DOCKER_HUB_TOKEN }}
+      - name: Build app with pack CLI using Buildpack Cache image (see https://buildpacks.io/docs/app-developer-guide/using-cache-image/) & publish to Docker Hub
+        run: |
+          pack build index.docker.io/jonashackt/spring-boot-buildpack:latest \
+              --builder paketobuildpacks/builder:base \
+              --path . \
+              --cache-image index.docker.io/jonashackt/spring-boot-buildpack-paketo-cache-image:latest \
+              --publish
