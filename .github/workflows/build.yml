@@ -14,19 +14,6 @@ jobs:
         with:
           java-version: 15
 
-      - name: Cache Docker layers
-        uses: actions/cache@v2
-        with:
-          path: /var/lib/docker
-          key: ${{ runner.os }}-docker-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-docker-
-
-      - name: Show Docker info
-        run: |
-          docker info
-          sudo ls -la /var/lib/docker
-
       - name: Login to GitHub Container Registry
         run: echo $CR_PAT | docker login ghcr.io -u jonashackt --password-stdin
         env:
@@ -45,14 +32,6 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - name: Cache Docker layers
-        uses: actions/cache@v2
-        with:
-          path: /var/lib/docker
-          key: ${{ runner.os }}-docker-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-docker-
-
       - name: Login to DockerHub Container Registry
         run: echo $DOCKER_HUB_TOKEN | docker login -u jonashackt --password-stdin
         env:
@@ -64,10 +43,10 @@ jobs:
           sudo apt-get update
           sudo apt-get install pack-cli
 
-      - name: Build app with pack CLI
-        run: pack build spring-boot-buildpack --path . --builder paketobuildpacks/builder:base
-
-      - name: Tag & publish to Docker Hub
+      - name: Build app with pack CLI using Buildpack Cache image (see https://buildpacks.io/docs/app-developer-guide/using-cache-image/) & publish to Docker Hub
         run: |
-          docker tag spring-boot-buildpack jonashackt/spring-boot-buildpack:latest
-          docker push jonashackt/spring-boot-buildpack:latest
+          pack build index.docker.io/jonashackt/spring-boot-buildpack:latest \
+              --builder paketobuildpacks/builder:base \
+              --path . \
+              --cache-image index.docker.io/jonashackt/spring-boot-buildpack-paketo-cache-image:latest \
+              --publish
