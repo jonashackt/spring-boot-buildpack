@@ -7,7 +7,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
       - name: Set up JDK 15
         uses: actions/setup-java@v2
@@ -31,7 +31,7 @@ jobs:
   build-with-paketo-push-2-dockerhub:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
       - name: Login to DockerHub Container Registry
         run: echo $DOCKER_HUB_TOKEN | docker login -u jonashackt --password-stdin
